@@ -1,3 +1,5 @@
+
+
 #include <glimac/sphere_vertices.hpp>
 #include <iostream>
 #include "glimac/common.hpp"

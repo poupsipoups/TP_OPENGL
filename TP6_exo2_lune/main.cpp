@@ -1,9 +1,11 @@
 #include <glimac/sphere_vertices.hpp>
 #include <iostream>
+#include <vector>
 #include "glimac/common.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
+#include "glm/gtc/random.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/matrix.hpp"
 #include "p6/p6.h"
@@ -28,10 +30,6 @@ int main()
     GLint uNormalMatrix_location = glGetUniformLocation(shader.id(), "uNormalMatrix");
 
     glEnable(GL_DEPTH_TEST);
-
-    glm::mat4 ProjMatrix   = glm::perspective(glm::radians(70.f), ctx.aspect_ratio(), 0.1f, 100.f);
-    glm::mat4 MVMatrix     = glm::translate(glm::mat4(1), glm::vec3(0, 0, -5));
-    glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix));
 
     // Vertices de la sphere
     const std::vector<glimac::ShapeVertex> vertices = glimac::sphere_vertices(1.f, 32, 16);
@@ -81,6 +79,15 @@ int main()
     // debind du VAO
     glBindVertexArray(0);
 
+    std::vector<glm::vec3> AxesRotation;
+    std::vector<glm::vec3> AxesTranslation;
+
+    for (int i = 0; i < 32; i++)
+    {
+        AxesRotation.push_back(glm::sphericalRand(1.f));
+        AxesTranslation.push_back(glm::sphericalRand(2.f));
+    }
+
     // Declare your infinite update loop.
     ctx.update = [&]() {
         /*********************************
@@ -91,11 +98,32 @@ int main()
         shader.use();
 
         glBindVertexArray(vao);
+
+        // planète
+
+        glm::mat4 ProjMatrix   = glm::perspective(glm::radians(70.f), ctx.aspect_ratio(), 0.1f, 100.f);
+        glm::mat4 MVMatrix     = glm::translate(glm::mat4(1), glm::vec3(0, 0, -5));
+        glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix));
+
         glUniformMatrix4fv(uMVPMatrix_location, 1, GL_FALSE, glm::value_ptr(ProjMatrix * MVMatrix));
         glUniformMatrix4fv(uMVMatrix_location, 1, GL_FALSE, glm::value_ptr(MVMatrix));
         glUniformMatrix4fv(uNormalMatrix_location, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
 
         glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+        // lune
+
+        for (int i = 0; i < 32; i++)
+        {
+            MVMatrix = glm::translate(glm::mat4{1.f}, {0.f, 0.f, -5.f});      // Translation
+            MVMatrix = glm::rotate(MVMatrix, ctx.time(), AxesRotation.at(i)); // Translation * Rotation
+            MVMatrix = glm::translate(MVMatrix, AxesTranslation.at(i));       // Translation * Rotation * Translation
+            MVMatrix = glm::scale(MVMatrix, glm::vec3{0.2f});                 // Translation * Rotation * Translation * Scale
+            glUniformMatrix4fv(uMVPMatrix_location, 1, GL_FALSE, glm::value_ptr(ProjMatrix * MVMatrix));
+            glUniformMatrix4fv(uMVMatrix_location, 1, GL_FALSE, glm::value_ptr(MVMatrix));
+            glUniformMatrix4fv(uNormalMatrix_location, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
+            glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+        }
 
         glBindVertexArray(0);
     };
