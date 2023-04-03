@@ -1,6 +1,7 @@
 #include <glimac/sphere_vertices.hpp>
 #include <iostream>
 #include <vector>
+#include "glimac/TrackballCamera.hpp"
 #include "glimac/common.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
@@ -163,6 +164,7 @@ int main()
     // debind du VAO
     glBindVertexArray(0);
 
+    TrackBallCamera        viewMatrix;
     std::vector<glm::vec3> AxesRotation;
     std::vector<glm::vec3> AxesTranslation;
 
@@ -177,6 +179,8 @@ int main()
         /*********************************
          * HERE SHOULD COME THE RENDERING CODE
          *********************************/
+
+        viewMatrix.rotateUp(-0.5f);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -194,7 +198,8 @@ int main()
         glUniform1i(earthProgram.uEarthTexture, 1);
 
         glm::mat4 ProjMatrix   = glm::perspective(glm::radians(70.f), ctx.aspect_ratio(), 0.1f, 100.f);
-        glm::mat4 MVMatrix     = glm::translate(glm::mat4(1), glm::vec3(0, 0, -5));
+        glm::mat4 MVMatrix     = viewMatrix.getViewMatrix();
+        MVMatrix               = glm::translate(glm::mat4(1), glm::vec3(0, 0, -5));
         glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix));
         MVMatrix               = glm::rotate(MVMatrix, 0.5f * ctx.time(), {0.f, 1.f, 0.f});
 
@@ -219,6 +224,7 @@ int main()
 
         for (int i = 0; i < 32; i++)
         {
+            MVMatrix = viewMatrix.getViewMatrix();
             MVMatrix = glm::translate(glm::mat4{1.f}, {0.f, 0.f, -5.f});      // Translation
             MVMatrix = glm::rotate(MVMatrix, ctx.time(), AxesRotation.at(i)); // Translation * Rotation
             MVMatrix = glm::translate(MVMatrix, AxesTranslation.at(i));       // Translation * Rotation * Translation
