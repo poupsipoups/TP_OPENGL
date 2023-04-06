@@ -1,15 +1,21 @@
-#include <glimac/sphere_vertices.hpp>
 #include <iostream>
 #include <vector>
 #include "glimac/TrackballCamera.hpp"
-#include "glimac/common.hpp"
-#include "glm/ext/matrix_clip_space.hpp"
-#include "glm/ext/matrix_transform.hpp"
+#include "glimac/sphere_vertices.hpp"
+#include "glm/ext/quaternion_geometric.hpp"
+#include "glm/ext/scalar_constants.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/random.hpp"
 #include "glm/gtc/type_ptr.hpp"
-#include "glm/matrix.hpp"
+#include "img/src/Image.h"
 #include "p6/p6.h"
+
+static bool right_rotation = false;
+static bool left_rotation  = false;
+static bool up_rotation    = false;
+static bool down_rotation  = false;
+static bool zoom_in        = false;
+static bool zoom_out       = false;
 
 struct EarthProgram {
     p6::Shader m_Program;
@@ -164,7 +170,7 @@ int main()
     // debind du VAO
     glBindVertexArray(0);
 
-    TrackBallCamera        viewMatrix;
+    TrackBallCamera        camera;
     std::vector<glm::vec3> AxesRotation;
     std::vector<glm::vec3> AxesTranslation;
 
@@ -180,7 +186,32 @@ int main()
          * HERE SHOULD COME THE RENDERING CODE
          *********************************/
 
-        viewMatrix.rotateUp(-0.5f);
+        if (right_rotation)
+        {
+            camera.rotateLeft(-5.f);
+        }
+        if (left_rotation)
+        {
+            camera.rotateLeft(5.f);
+        }
+        if (up_rotation)
+        {
+            camera.rotateUp(5.f);
+        }
+        if (down_rotation)
+        {
+            camera.rotateUp(-5.f);
+        }
+        if (zoom_in)
+        {
+            camera.moveFront(0.1f);
+        }
+        if (zoom_out)
+        {
+            camera.moveFront(-0.1f);
+        }
+
+        glm::mat4 viewCamera = camera.getViewMatrix();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -197,13 +228,12 @@ int main()
         glBindTexture(GL_TEXTURE_2D, tex_nuage);
         glUniform1i(earthProgram.uEarthTexture, 1);
 
-        glm::mat4 ProjMatrix   = glm::perspective(glm::radians(70.f), ctx.aspect_ratio(), 0.1f, 100.f);
-        glm::mat4 MVMatrix     = viewMatrix.getViewMatrix();
-        MVMatrix               = glm::translate(glm::mat4(1), glm::vec3(0, 0, -5));
+        glm::mat4 ProjMatrix = glm::perspective(glm::radians(70.f), ctx.aspect_ratio(), 0.1f, 100.f);
+        // glm::mat4 MVMatrix     = glm::translate(glm::mat4(1), glm::vec3(0, 0, -5));
+        glm::mat4 MVMatrix     = glm::rotate(glm::mat4(1), 0.5f * ctx.time(), {0.f, 1.f, 0.f});
         glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix));
-        MVMatrix               = glm::rotate(MVMatrix, 0.5f * ctx.time(), {0.f, 1.f, 0.f});
 
-        glUniformMatrix4fv(earthProgram.uMVPMatrix, 1, GL_FALSE, glm::value_ptr(ProjMatrix * MVMatrix));
+        glUniformMatrix4fv(earthProgram.uMVPMatrix, 1, GL_FALSE, glm::value_ptr(ProjMatrix * viewCamera * MVMatrix));
         glUniformMatrix4fv(earthProgram.uMVMatrix, 1, GL_FALSE, glm::value_ptr(MVMatrix));
         glUniformMatrix4fv(earthProgram.uNormalMatrix, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
 
@@ -224,13 +254,12 @@ int main()
 
         for (int i = 0; i < 32; i++)
         {
-            MVMatrix = viewMatrix.getViewMatrix();
-            MVMatrix = glm::translate(glm::mat4{1.f}, {0.f, 0.f, -5.f});      // Translation
+            MVMatrix = glm::translate(glm::mat4{1.f}, {0.f, 0.f, 0.f});       // Translation
             MVMatrix = glm::rotate(MVMatrix, ctx.time(), AxesRotation.at(i)); // Translation * Rotation
             MVMatrix = glm::translate(MVMatrix, AxesTranslation.at(i));       // Translation * Rotation * Translation
             MVMatrix = glm::scale(MVMatrix, glm::vec3{0.2f});                 // Translation * Rotation * Translation * Scale
 
-            glUniformMatrix4fv(moonProgram.uMVPMatrix, 1, GL_FALSE, glm::value_ptr(ProjMatrix * MVMatrix));
+            glUniformMatrix4fv(moonProgram.uMVPMatrix, 1, GL_FALSE, glm::value_ptr(ProjMatrix * viewCamera * MVMatrix));
             glUniformMatrix4fv(moonProgram.uMVMatrix, 1, GL_FALSE, glm::value_ptr(MVMatrix));
             glUniformMatrix4fv(moonProgram.uNormalMatrix, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
             glDrawArrays(GL_TRIANGLES, 0, vertices.size());
@@ -239,6 +268,60 @@ int main()
         glBindTexture(GL_TEXTURE_2D, 0);
 
         glBindVertexArray(0);
+    };
+
+    ctx.key_pressed = [&](p6::Key key) {
+        if (key.physical == GLFW_KEY_LEFT)
+        {
+            left_rotation = true;
+        }
+        if (key.physical == GLFW_KEY_RIGHT)
+        {
+            right_rotation = true;
+        }
+        if (key.physical == GLFW_KEY_W)
+        {
+            up_rotation = true;
+        }
+        if (key.physical == GLFW_KEY_S)
+        {
+            down_rotation = true;
+        }
+        if (key.physical == GLFW_KEY_UP)
+        {
+            zoom_in = true;
+        }
+        if (key.physical == GLFW_KEY_DOWN)
+        {
+            zoom_out = true;
+        }
+    };
+
+    ctx.key_released = [&](p6::Key key) {
+        if (key.physical == GLFW_KEY_LEFT)
+        {
+            left_rotation = false;
+        }
+        if (key.physical == GLFW_KEY_RIGHT)
+        {
+            right_rotation = false;
+        }
+        if (key.physical == GLFW_KEY_W)
+        {
+            up_rotation = false;
+        }
+        if (key.physical == GLFW_KEY_S)
+        {
+            down_rotation = false;
+        }
+        if (key.physical == GLFW_KEY_UP)
+        {
+            zoom_in = false;
+        }
+        if (key.physical == GLFW_KEY_DOWN)
+        {
+            zoom_out = false;
+        }
     };
 
     // Should be done last. It starts the infinite loop.
